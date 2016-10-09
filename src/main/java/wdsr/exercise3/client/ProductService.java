@@ -1,11 +1,17 @@
 package wdsr.exercise3.client;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.client.Client;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 
 import wdsr.exercise3.model.Product;
 import wdsr.exercise3.model.ProductType;
@@ -21,8 +27,9 @@ public class ProductService extends RestClientBase {
 	 * @return A list of found products - possibly empty, never null.
 	 */
 	public List<Product> retrieveProducts(Set<ProductType> types) {
-		// TODO
-		return null;
+		WebTarget productsTarget = baseTarget.path("/products").queryParam("type", types.toArray());
+		Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+		return response.readEntity(new GenericType<ArrayList<Product>>(){});
 	}
 	
 	/**
@@ -30,8 +37,9 @@ public class ProductService extends RestClientBase {
 	 * @return A list of all products - possibly empty, never null.
 	 */
 	public List<Product> retrieveAllProducts() {
-		// TODO
-		return null;
+		WebTarget productsTarget = baseTarget.path("/products");
+	    Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+	    return response.readEntity(new GenericType<ArrayList<Product>>(){});
 	}
 	
 	/**
@@ -41,8 +49,14 @@ public class ProductService extends RestClientBase {
 	 * @throws NotFoundException if no product found for the given ID.
 	 */
 	public Product retrieveProduct(int id) {
-		// TODO
-		return null;
+		WebTarget productsTarget = baseTarget.path("/products/{id}").resolveTemplate("id", id);
+        Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+        
+        if (response.getStatus() != Response.Status.OK.getStatusCode()) {
+            throw new NotFoundException();
+        }
+
+        return response.readEntity(Product.class);
 	}	
 	
 	/**
@@ -52,8 +66,18 @@ public class ProductService extends RestClientBase {
 	 * @throws WebApplicationException if request to the server failed
 	 */
 	public int storeNewProduct(Product product) {
-		// TODO
-		return 0;
+		WebTarget productsTarget = baseTarget.path("/products");
+		Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).post(Entity.entity(product, MediaType.APPLICATION_JSON_TYPE), Response.class);
+		if(response.getStatus() == Response.Status.CREATED.getStatusCode()) {
+		    response.close();
+		    productsTarget = productsTarget.queryParam("name", product.getName()).queryParam("type", product.getType());
+		    response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).get(Response.class);
+		    List<Product> returnedProducts = response.readEntity(new GenericType<ArrayList<Product>>(){});
+		    return returnedProducts.get(returnedProducts.size()-1).getId();
+		} 
+		else {
+		    throw new WebApplicationException();
+		}
 	}
 	
 	/**
@@ -62,7 +86,12 @@ public class ProductService extends RestClientBase {
 	 * @throws NotFoundException if no product found for the given ID.
 	 */
 	public void updateProduct(Product product) {
-		// TODO
+        WebTarget productsTarget = baseTarget.path("/products/{id}").resolveTemplate("id", product.getId());
+        Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).put(Entity.entity(product, MediaType.APPLICATION_JSON_TYPE), Response.class);
+        
+        if (response.getStatus() != Response.Status.NO_CONTENT.getStatusCode()) {
+            throw new NotFoundException();
+        }
 	}
 
 	
@@ -72,6 +101,11 @@ public class ProductService extends RestClientBase {
 	 * @throws NotFoundException if no product found for the given ID.
 	 */
 	public void deleteProduct(Product product) {
-		// TODO
+		WebTarget productsTarget = baseTarget.path("/products/{id}").resolveTemplate("id", product.getId());
+        Response response = productsTarget.request(MediaType.APPLICATION_JSON_TYPE).delete(Response.class);
+        
+        if (response.getStatus() != Response.Status.NO_CONTENT.getStatusCode()) {
+            throw new NotFoundException();
+        }
 	}
 }
